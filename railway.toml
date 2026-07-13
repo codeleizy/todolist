@@ -1,0 +1,7 @@
+[build]
+builder = "RAILPACK"
+
+[deploy]
+startCommand = "node api/server.mjs"
+healthcheckPath = "/health"
+healthcheckTimeout = 30

@@ -1,0 +1,6 @@
+{
+  "name": "task-hub-mvp",
+  "private": true,
+  "scripts": { "build": "node scripts/build-static.mjs", "start:api": "node api/server.mjs" },
+  "engines": { "node": ">=20" }
+}
