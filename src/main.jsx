@@ -126,7 +126,7 @@ function App() {
   const title = projectFilter ? projects.find((item) => item.id === projectFilter)?.name || '项目' : ({ inbox: '收件箱', today: '今日', quadrant: '四象限', calendar: '日历', archive: '归档' }[view]);
   const subtitle = projectFilter ? '查看这个项目中的全部任务' : ({ inbox: '先记下来，之后再整理', today: '今天可以推进和需要关注的任务', quadrant: '一掐四：用位置判断优先级', calendar: '按计划日期与截止日期查看', archive: '已经完成、取消或归档的任务' }[view]);
 
-  return <div className="shell">
+  return <div className={selected ? 'shell has-detail' : 'shell detail-closed'}>
     <aside className="sidebar">
       <div className="brand"><b><Check size={16} strokeWidth={3} /></b><span>一掐四</span></div>
       <button className="primary" onClick={() => setModal('task')}><Plus size={16} />新建任务</button>
@@ -151,7 +151,7 @@ function App() {
       </header>
       {projectFilter && <div className="filter-bar"><span>正在查看项目</span><button onClick={() => { setProjectFilter(null); setView('today'); }}>清除筛选</button></div>}
       <section className="content" aria-busy={loading}>
-        {loading ? <div className="empty">正在载入任务…</div> : projectFilter ? <TaskList tasks={visibleTasks.filter(active)} onSelect={setSelected} onComplete={completeTask} childrenByParent={childrenByParent} selectedId={selected?.id} empty="这个项目还没有未完成任务" /> : <ViewContent view={view} tasks={visibleTasks} month={month} setMonth={setMonth} onSelect={setSelected} onComplete={completeTask} childrenByParent={childrenByParent} selectedId={selected?.id} />}
+        {loading ? <div className="empty">正在载入任务…</div> : projectFilter ? <TaskList tasks={visibleTasks.filter(active)} onSelect={setSelected} onComplete={completeTask} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selected?.id} empty="这个项目还没有未完成任务" /> : <ViewContent view={view} tasks={visibleTasks} month={month} setMonth={setMonth} onSelect={setSelected} onComplete={completeTask} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selected?.id} />}
       </section>
     </main>
 
@@ -169,10 +169,10 @@ function App() {
 
 function NavButton({ icon: Glyph, label, active, onClick, count }) { return <button className={active ? 'active' : ''} onClick={onClick}><Icon><Glyph size={16} strokeWidth={1.9} /></Icon><span>{label}</span>{count !== undefined && <small>{count}</small>}</button>; }
 
-function ViewContent({ view, tasks, month, setMonth, onSelect, onComplete, childrenByParent, selectedId }) {
+function ViewContent({ view, tasks, month, setMonth, onSelect, onComplete, childrenByParent, projects, categories, selectedId }) {
   const root = tasks.filter((task) => !task.parent_id);
-  if (view === 'inbox') return <TaskList tasks={root.filter((task) => active(task) && task.status === '收件箱')} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} selectedId={selectedId} empty="收件箱已经清空" />;
-  if (view === 'archive') return <TaskList tasks={root.filter((task) => task.archived_at || ['已完成', '已取消'].includes(task.status))} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} selectedId={selectedId} empty="还没有归档记录" />;
+  if (view === 'inbox') return <TaskList tasks={root.filter((task) => active(task) && task.status === '收件箱')} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} empty="收件箱已经清空" />;
+  if (view === 'archive') return <TaskList tasks={root.filter((task) => task.archived_at || ['已完成', '已取消'].includes(task.status))} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} empty="还没有归档记录" />;
   if (view === 'quadrant') return <Quadrants tasks={root.filter((task) => active(task) && task.status !== '阻塞')} onSelect={onSelect} childrenByParent={childrenByParent} />;
   if (view === 'calendar') return <Calendar tasks={root.filter(active)} month={month} setMonth={setMonth} onSelect={onSelect} />;
   const date = today();
@@ -181,17 +181,17 @@ function ViewContent({ view, tasks, month, setMonth, onSelect, onComplete, child
   const inProgress = working.filter((task) => task.status === '进行中' && !late.includes(task));
   const planned = working.filter((task) => task.scheduled_for === date && !late.includes(task) && !inProgress.includes(task));
   const future = working.filter((task) => task.due_at && dateOnly(task.due_at) > date && !late.includes(task) && !inProgress.includes(task) && !planned.includes(task));
-  return <div className="today-grid"><Section title="已逾期 / 今天截止" tasks={late} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} selectedId={selectedId} /><Section title="进行中" tasks={inProgress} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} selectedId={selectedId} /><Section title="计划今天" tasks={planned} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} selectedId={selectedId} /><Section title="未来有截止时间" hint="所有未来截止任务都会列出" tasks={future} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} selectedId={selectedId} /></div>;
+  return <div className="today-list"><Section title="已逾期 / 今天截止" tasks={late} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /><Section title="进行中" tasks={inProgress} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /><Section title="计划今天" tasks={planned} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /><Section title="未来有截止时间" hint="所有未来截止任务都会列出" tasks={future} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /></div>;
 }
 
 function Section({ title, hint, tasks, ...props }) { return <section className="section"><div className="section-head"><h2>{title}</h2><span>{tasks.length ? `${tasks.length} 项` : hint}</span></div><TaskList tasks={tasks} {...props} /></section>; }
-function TaskList({ tasks, onSelect, onComplete, childrenByParent, selectedId, empty = '暂无任务' }) { return <div className="task-list">{tasks.length ? tasks.map((task) => <TaskRow key={task.id} task={task} onSelect={onSelect} onComplete={onComplete} children={childrenByParent.get(task.id) || []} selected={task.id === selectedId} />) : <div className="empty">{empty}</div>}</div>; }
+function TaskList({ tasks, onSelect, onComplete, childrenByParent, projects = [], categories = [], selectedId, empty = '暂无任务' }) { return <div className="task-list">{tasks.length ? tasks.map((task) => <TaskRow key={task.id} task={task} onSelect={onSelect} onComplete={onComplete} children={childrenByParent.get(task.id) || []} project={projects.find((item) => item.id === task.project_id)} category={categories.find((item) => item.id === task.category_id)} selected={task.id === selectedId} />) : <div className="empty">{empty}</div>}</div>; }
 
-function TaskRow({ task, onSelect, onComplete, children, selected }) {
+function TaskRow({ task, onSelect, onComplete, children, project, category, selected }) {
   const due = dateOnly(task.due_at); const isLate = due && due < today();
   return <article className={selected ? 'task-row selected' : 'task-row'} tabIndex="0" onClick={() => onSelect(task)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(task); } }}>
     <button className={task.status === '已完成' ? 'check done' : 'check'} aria-label={`${task.status === '已完成' ? '恢复' : '完成'}：${task.title}`} onClick={(event) => { event.stopPropagation(); onComplete(task); }}>{task.status === '已完成' && <Check size={12} strokeWidth={3} />}</button>
-    <div className="task-copy"><strong>{esc(task.title)}</strong><div className="task-meta"><span>{task.status}</span>{children.length > 0 && <span className="child-count"><Circle size={10} /> {children.filter((item) => item.status === '已完成').length}/{children.length} 子任务</span>}</div></div>
+    <div className="task-copy"><strong>{esc(task.title)}</strong><div className="task-meta"><span className={`row-status row-status-${task.status}`}>{task.status}</span>{project && <span className="row-project"><i style={{ background: project.color || '#8290aa' }} />{project.name}</span>}{category && <span className="row-category">{category.name}</span>}{children.length > 0 && <span className="child-count"><Circle size={10} /> {children.filter((item) => item.status === '已完成').length}/{children.length}</span>}</div></div>
     <div className={isLate ? 'due overdue' : 'due'}>{isLate ? '已逾期' : due === today() ? '今天截止' : due ? `${due.slice(5).replace('-', '/')} 截止` : ''}</div>
   </article>;
 }
