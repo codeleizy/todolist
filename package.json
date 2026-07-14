@@ -10,6 +10,7 @@
     "start:api": "node api/server.mjs"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.19",
     "@vitejs/plugin-react": "4.3.4",
     "lucide-react": "^0.468.0",
     "react": "18.3.1",
