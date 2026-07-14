@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Archive, CalendarDays, Check, ChevronLeft, ChevronRight, Circle, Clock3, Grid2X2, Inbox, Plus, RefreshCw, Search, X } from 'lucide-react';
 import './styles.css';
@@ -97,7 +97,7 @@ function App() {
         setTasks((current) => current.map((item) => item.id === id ? updated : item));
         setSelected((current) => current?.id === id ? updated : current);
       }
-      flash(message);
+      if (message) flash(message);
       return updated;
     } catch (error) { flash(error.message || '保存失败'); return null; }
   };
@@ -151,7 +151,7 @@ function App() {
       </header>
       {projectFilter && <div className="filter-bar"><span>正在查看项目</span><button onClick={() => { setProjectFilter(null); setView('today'); }}>清除筛选</button></div>}
       <section className="content" aria-busy={loading}>
-        {loading ? <div className="empty">正在载入任务…</div> : projectFilter ? <TaskList tasks={visibleTasks.filter(active)} onSelect={setSelected} onComplete={completeTask} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selected?.id} empty="这个项目还没有未完成任务" /> : <ViewContent view={view} tasks={visibleTasks} month={month} setMonth={setMonth} onSelect={setSelected} onComplete={completeTask} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selected?.id} />}
+        {loading ? <div className="empty">正在载入任务…</div> : projectFilter ? <TaskList tasks={visibleTasks.filter(active)} onSelect={setSelected} onComplete={completeTask} onUpdate={updateTask} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selected?.id} empty="这个项目还没有未完成任务" /> : <ViewContent view={view} tasks={visibleTasks} month={month} setMonth={setMonth} onSelect={setSelected} onComplete={completeTask} onUpdate={updateTask} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selected?.id} />}
       </section>
     </main>
 
@@ -169,10 +169,10 @@ function App() {
 
 function NavButton({ icon: Glyph, label, active, onClick, count }) { return <button className={active ? 'active' : ''} onClick={onClick}><Icon><Glyph size={16} strokeWidth={1.9} /></Icon><span>{label}</span>{count !== undefined && <small>{count}</small>}</button>; }
 
-function ViewContent({ view, tasks, month, setMonth, onSelect, onComplete, childrenByParent, projects, categories, selectedId }) {
+function ViewContent({ view, tasks, month, setMonth, onSelect, onComplete, onUpdate, childrenByParent, projects, categories, selectedId }) {
   const root = tasks.filter((task) => !task.parent_id);
-  if (view === 'inbox') return <TaskList tasks={root.filter((task) => active(task) && task.status === '收件箱')} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} empty="收件箱已经清空" />;
-  if (view === 'archive') return <TaskList tasks={root.filter((task) => task.archived_at || ['已完成', '已取消'].includes(task.status))} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} empty="还没有归档记录" />;
+  if (view === 'inbox') return <TaskList tasks={root.filter((task) => active(task) && task.status === '收件箱')} onSelect={onSelect} onComplete={onComplete} onUpdate={onUpdate} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} empty="收件箱已经清空" />;
+  if (view === 'archive') return <TaskList tasks={root.filter((task) => task.archived_at || ['已完成', '已取消'].includes(task.status))} onSelect={onSelect} onComplete={onComplete} onUpdate={onUpdate} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} empty="还没有归档记录" />;
   if (view === 'quadrant') return <Quadrants tasks={root.filter((task) => active(task) && task.status !== '阻塞')} onSelect={onSelect} childrenByParent={childrenByParent} />;
   if (view === 'calendar') return <Calendar tasks={root.filter(active)} month={month} setMonth={setMonth} onSelect={onSelect} />;
   const date = today();
@@ -181,17 +181,17 @@ function ViewContent({ view, tasks, month, setMonth, onSelect, onComplete, child
   const inProgress = working.filter((task) => task.status === '进行中' && !late.includes(task));
   const planned = working.filter((task) => task.scheduled_for === date && !late.includes(task) && !inProgress.includes(task));
   const future = working.filter((task) => task.due_at && dateOnly(task.due_at) > date && !late.includes(task) && !inProgress.includes(task) && !planned.includes(task));
-  return <div className="today-list"><Section title="已逾期 / 今天截止" tasks={late} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /><Section title="进行中" tasks={inProgress} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /><Section title="计划今天" tasks={planned} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /><Section title="未来有截止时间" hint="所有未来截止任务都会列出" tasks={future} onSelect={onSelect} onComplete={onComplete} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /></div>;
+  return <div className="today-list"><Section title="已逾期 / 今天截止" tasks={late} onSelect={onSelect} onComplete={onComplete} onUpdate={onUpdate} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /><Section title="进行中" tasks={inProgress} onSelect={onSelect} onComplete={onComplete} onUpdate={onUpdate} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /><Section title="计划今天" tasks={planned} onSelect={onSelect} onComplete={onComplete} onUpdate={onUpdate} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /><Section title="未来有截止时间" hint="所有未来截止任务都会列出" tasks={future} onSelect={onSelect} onComplete={onComplete} onUpdate={onUpdate} childrenByParent={childrenByParent} projects={projects} categories={categories} selectedId={selectedId} /></div>;
 }
 
 function Section({ title, hint, tasks, ...props }) { return <section className="section"><div className="section-head"><h2>{title}</h2><span>{tasks.length ? `${tasks.length} 项` : hint}</span></div><TaskList tasks={tasks} {...props} /></section>; }
-function TaskList({ tasks, onSelect, onComplete, childrenByParent, projects = [], categories = [], selectedId, empty = '暂无任务' }) { return <div className="task-list">{tasks.length ? tasks.map((task) => <TaskRow key={task.id} task={task} onSelect={onSelect} onComplete={onComplete} children={childrenByParent.get(task.id) || []} project={projects.find((item) => item.id === task.project_id)} category={categories.find((item) => item.id === task.category_id)} selected={task.id === selectedId} />) : <div className="empty">{empty}</div>}</div>; }
+function TaskList({ tasks, onSelect, onComplete, onUpdate, childrenByParent, projects = [], categories = [], selectedId, empty = '暂无任务' }) { return <div className="task-list">{tasks.length ? tasks.map((task) => <TaskRow key={task.id} task={task} onSelect={onSelect} onComplete={onComplete} onUpdate={onUpdate} children={childrenByParent.get(task.id) || []} project={projects.find((item) => item.id === task.project_id)} category={categories.find((item) => item.id === task.category_id)} selected={task.id === selectedId} />) : <div className="empty">{empty}</div>}</div>; }
 
-function TaskRow({ task, onSelect, onComplete, children, project, category, selected }) {
+function TaskRow({ task, onSelect, onComplete, onUpdate, children, project, category, selected }) {
   const due = dateOnly(task.due_at); const isLate = due && due < today();
   return <article className={selected ? 'task-row selected' : 'task-row'} tabIndex="0" onClick={() => onSelect(task)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(task); } }}>
     <button className={task.status === '已完成' ? 'check done' : 'check'} aria-label={`${task.status === '已完成' ? '恢复' : '完成'}：${task.title}`} onClick={(event) => { event.stopPropagation(); onComplete(task); }}>{task.status === '已完成' && <Check size={12} strokeWidth={3} />}</button>
-    <div className="task-copy"><strong>{esc(task.title)}</strong><div className="task-meta"><span className={`row-status row-status-${task.status}`}>{task.status}</span>{project && <span className="row-project"><i style={{ background: project.color || '#8290aa' }} />{project.name}</span>}{category && <span className="row-category">{category.name}</span>}{children.length > 0 && <span className="child-count"><Circle size={10} /> {children.filter((item) => item.status === '已完成').length}/{children.length}</span>}</div></div>
+    <div className="task-copy"><strong>{esc(task.title)}</strong><div className="task-meta"><button className={`row-status row-status-${task.status}`} title="点击切换状态" onClick={(event) => { event.stopPropagation(); const flow = ['收件箱', '待进行', '进行中', '已完成']; const next = flow[(flow.indexOf(task.status) + 1) % flow.length]; onUpdate(task.id, { status: next }, `已更新为${next}`); }}>{task.status}</button>{project && <span className="row-project"><i style={{ background: project.color || '#8290aa' }} />{project.name}</span>}{category && <span className="row-category">{category.name}</span>}{children.length > 0 && <span className="child-count"><Circle size={10} /> {children.filter((item) => item.status === '已完成').length}/{children.length}</span>}</div></div>
     <div className={isLate ? 'due overdue' : 'due'}>{isLate ? '已逾期' : due === today() ? '今天截止' : due ? `${due.slice(5).replace('-', '/')} 截止` : ''}</div>
   </article>;
 }
@@ -210,13 +210,17 @@ function Calendar({ tasks, month, setMonth, onSelect }) {
 
 function TaskDetail({ task, projects, categories, childTasks, onSave, onComplete, onClose, onAddChild }) {
   const [draft, setDraft] = useState({ ...task, due_at: task.due_at ? task.due_at.slice(0, 16) : '' });
+  const [saving, setSaving] = useState(false);
   const set = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
-  const save = async () => { const updated = await onSave(task.id, { title: draft.title.trim() || task.title, status: draft.status, importance: draft.importance, urgency: draft.urgency, description: draft.description || '', scheduled_for: draft.scheduled_for || null, due_at: draft.due_at ? new Date(draft.due_at).toISOString() : null, project_id: draft.project_id || null, category_id: draft.category_id || null }); if (updated) setDraft({ ...updated, due_at: updated.due_at ? updated.due_at.slice(0, 16) : '' }); };
+  const payloadFor = useCallback((value) => ({ title: value.title.trim() || task.title, status: value.status, importance: value.importance, urgency: value.urgency, description: value.description || '', scheduled_for: value.scheduled_for || null, due_at: value.due_at ? new Date(value.due_at).toISOString() : null, project_id: value.project_id || null, category_id: value.category_id || null }), [task.title]);
+  const savedPayload = useRef(JSON.stringify(payloadFor({ ...task, due_at: task.due_at || '' })));
+  const save = useCallback(async (message = '') => { const payload = payloadFor(draft); const serialized = JSON.stringify(payload); if (serialized === savedPayload.current) return; setSaving(true); const updated = await onSave(task.id, payload, message); if (updated) { savedPayload.current = serialized; setDraft({ ...updated, due_at: updated.due_at ? updated.due_at.slice(0, 16) : '' }); } setSaving(false); }, [draft, onSave, payloadFor, task.id]);
+  useEffect(() => { const serialized = JSON.stringify(payloadFor(draft)); if (serialized === savedPayload.current) return undefined; const timer = window.setTimeout(() => save(), 700); return () => window.clearTimeout(timer); }, [draft, payloadFor, save]);
   const completedChildren = childTasks.filter((item) => item.status === '已完成').length;
   return <div className="detail">
-    <div className="detail-top"><span>任务详情</span><button aria-label="关闭详情" onClick={onClose}><X size={17} /></button></div>
+    <div className="detail-top"><span>{saving ? '正在保存…' : '已自动保存'}</span><button aria-label="关闭详情" onClick={onClose}><X size={17} /></button></div>
     <div className="detail-heading"><input className="detail-title" aria-label="任务名称" value={draft.title || ''} onChange={(event) => set('title', event.target.value)} /><span className={`status-pill status-${draft.status}`}>{draft.status}</span></div>
-    <textarea className="detail-description" value={draft.description || ''} onChange={(event) => set('description', event.target.value)} placeholder="添加说明…" rows="3" />
+    <textarea className="detail-description" value={draft.description || ''} onBlur={() => save()} onChange={(event) => set('description', event.target.value)} placeholder="添加说明…" rows="3" />
     <section className="detail-section"><h3>属性</h3><div className="property-list">
       <label><span>状态</span><select value={draft.status} onChange={(event) => set('status', event.target.value)}>{['收件箱', '待进行', '进行中', '已完成', '已取消', '阻塞'].map((item) => <option key={item}>{item}</option>)}</select></label>
       <label><span>项目</span><select value={draft.project_id || ''} onChange={(event) => set('project_id', event.target.value)}><option value="">未设置</option>{projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
@@ -226,7 +230,7 @@ function TaskDetail({ task, projects, categories, childTasks, onSave, onComplete
     </div></section>
     <section className="detail-section priority-section"><h3>优先级</h3><div className="priority-controls"><label><span>重要度</span><select value={String(draft.importance)} onChange={(event) => set('importance', event.target.value === 'true')}><option value="true">重要</option><option value="false">不重要</option></select></label><label><span>紧急度</span><select value={String(draft.urgency)} onChange={(event) => set('urgency', event.target.value === 'true')}><option value="true">紧急</option><option value="false">不紧急</option></select></label></div></section>
     <section className="detail-section children-section"><div className="children-head"><h3>子任务 <em>{completedChildren}/{childTasks.length}</em></h3><button onClick={onAddChild}><Plus size={14} />添加</button></div>{childTasks.length ? childTasks.map((child) => <div className="child" key={child.id}><span className={child.status === '已完成' ? 'child-check done' : 'child-check'}>{child.status === '已完成' && <Check size={10} strokeWidth={3} />}</span>{child.title}</div>) : <p className="child-empty">拆成小步骤，会更容易推进。</p>}</section>
-    <div className="detail-actions"><button className="secondary" onClick={() => onComplete(task)}>{task.status === '已完成' ? '恢复任务' : '完成任务'}</button><button className="primary save" onClick={save}>保存更改</button></div>
+    <div className="detail-actions"><button className="secondary" onClick={() => onComplete(task)}>{task.status === '已完成' ? '恢复任务' : '完成任务'}</button><button className="primary save" onClick={() => save('已保存')}>{saving ? '保存中…' : '立即保存'}</button></div>
   </div>;
 }
 
