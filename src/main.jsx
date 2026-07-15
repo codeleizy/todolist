@@ -173,7 +173,7 @@ function App() {
       {addingCategory && <div className="category-tree"><InlineCategory projects={projects} projectId={projectFilter} onCancel={() => setAddingCategory(false)} onSubmit={async (name, projectId) => { if (await createCategory(name, projectId)) setAddingCategory(false); }} /></div>}
     </aside>
 
-    <main className="main">
+    <main className={view === 'inbox' && !projectFilter ? 'main inbox-main' : 'main'}>
       <header className="topbar">
         <div><h1>{title}</h1><p>{subtitle}</p></div>
         <div className="toolbar">
@@ -240,8 +240,11 @@ function StatusList({ tasks, projects, categories, childrenByParent, onSelect, o
 
 function InboxWorkspace({ tasks, projects, categories, childrenByParent, onSelect, onComplete, onSave, onDelete, onAddChild }) {
   const [focused, setFocused] = useState(() => tasks[0] || null);
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   useEffect(() => setFocused((current) => tasks.find((task) => task.id === current?.id) || tasks[0] || null), [tasks]);
-  return <div className="inbox-workspace"><aside className="inbox-list"><header><strong>收件箱</strong><span>{tasks.length}</span></header>{tasks.length ? tasks.map((task) => <button key={task.id} className={focused?.id === task.id ? 'inbox-item selected' : 'inbox-item'} onClick={() => setFocused(task)}><span className="inbox-item-icon"><Inbox size={14} /></span><div><strong>{task.title}</strong><small>{projects.find((item) => item.id === task.project_id)?.name || '未分类'} · {displayStatus(task.status)}</small></div></button>) : <div className="empty">收件箱已经清空</div>}</aside><section className="inbox-preview">{focused ? <TaskEditor key={focused.id} task={focused} projects={projects} categories={categories} childTasks={childrenByParent.get(focused.id) || []} onSave={onSave} onComplete={onComplete} onDelete={onDelete} onAddChild={() => onAddChild(focused)} autoSave inbox /> : <div className="inbox-empty"><Inbox size={28} /><strong>收件箱已经清空</strong><span>记录新任务后会出现在这里。</span></div>}</section></div>;
+  useEffect(() => { if (!focused) setMobileDetailOpen(false); }, [focused]);
+  const openTask = (task) => { setFocused(task); setMobileDetailOpen(true); };
+  return <div className={mobileDetailOpen ? 'inbox-workspace mobile-detail-open' : 'inbox-workspace'}><aside className="inbox-list"><header><strong>收件箱</strong><span>{tasks.length} 项待处理</span></header>{tasks.length ? tasks.map((task) => <button key={task.id} className={focused?.id === task.id ? 'inbox-item selected' : 'inbox-item'} onClick={() => openTask(task)}><span className="inbox-item-icon"><Inbox size={14} /></span><div><strong>{task.title}</strong><small>{projects.find((item) => item.id === task.project_id)?.name || '未分类'} · {displayStatus(task.status)}</small></div><ChevronRight className="inbox-item-arrow" size={16} /></button>) : <div className="empty">收件箱已经清空</div>}</aside><section className="inbox-preview"><header className="inbox-mobile-detail-head"><button onClick={() => setMobileDetailOpen(false)} aria-label="返回收件箱"><ChevronLeft size={19} />收件箱</button><strong>任务详情</strong><span /></header>{focused ? <TaskEditor key={focused.id} task={focused} projects={projects} categories={categories} childTasks={childrenByParent.get(focused.id) || []} onSave={onSave} onComplete={onComplete} onDelete={onDelete} onAddChild={() => onAddChild(focused)} autoSave inbox /> : <div className="inbox-empty"><Inbox size={28} /><strong>收件箱已经清空</strong><span>记录新任务后会出现在这里。</span></div>}</section></div>;
 }
 function InboxEditor({ task, projects, categories, childCount, onSave, onOpen, onComplete }) {
   const [draft, setDraft] = useState({ ...task }); const [saving, setSaving] = useState(false); const [saved, setSaved] = useState(true);
