@@ -74,6 +74,7 @@ function App() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [notice, setNotice] = useState('');
   const [undoAction, setUndoAction] = useState(null);
+  const [mobileMore, setMobileMore] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const flash = (message, undo = null) => {
@@ -210,7 +211,7 @@ function App() {
     </main>
 
     <TaskSheet task={selected} projects={projects} categories={categories} childTasks={selected ? childrenByParent.get(selected.id) || [] : []} onClose={() => setSelected(null)} onSave={updateTask} onDelete={deleteTask} onOpenTask={setSelected} onAddChild={() => selected && (() => { setQuickParent(selected); setQuickStatus('待进行'); setQuickCreate(true); })()} />
-    <nav className="mobile-nav" aria-label="移动导航"><button onClick={() => changeView('inbox')}>收件箱</button><button onClick={() => changeView('status')}>任务</button><button className="mobile-add" onClick={() => { setQuickParent(null); setQuickStatus('收件箱'); setQuickCreate(true); }} aria-label="新建任务"><Plus size={22} /></button><button onClick={() => changeView('today')}>行动</button><div className="mobile-more-wrap"><Popover.Root><Popover.Trigger asChild><button>更多</button></Popover.Trigger><Popover.Portal><Popover.Content className="mobile-more-menu" side="top" align="end"><button onClick={() => changeView('calendar')}><CalendarDays size={15} />日历</button><button onClick={() => changeView('quadrant')}><Grid2X2 size={15} />四象限</button><button onClick={() => changeView('review')}><Clock3 size={15} />本周回顾</button><button onClick={() => changeView('archive')}><Archive size={15} />归档</button></Popover.Content></Popover.Portal></Popover.Root></div></nav>
+    <nav className="mobile-nav" aria-label="移动导航"><button onClick={() => changeView('inbox')}>收件箱</button><button onClick={() => changeView('status')}>任务</button><button className="mobile-add" onClick={() => { setQuickParent(null); setQuickStatus('收件箱'); setQuickCreate(true); }} aria-label="新建任务"><Plus size={22} /></button><button onClick={() => changeView('today')}>行动</button><button onClick={() => setMobileMore((open) => !open)} aria-expanded={mobileMore}>更多</button></nav>{mobileMore && <div className="mobile-more-menu mobile-more-menu-fixed"><button onClick={() => { changeView('calendar'); setMobileMore(false); }}><CalendarDays size={15} />日历</button><button onClick={() => { changeView('quadrant'); setMobileMore(false); }}><Grid2X2 size={15} />四象限</button><button onClick={() => { changeView('review'); setMobileMore(false); }}><Clock3 size={15} />本周回顾</button><button onClick={() => { changeView('archive'); setMobileMore(false); }}><Archive size={15} />归档</button></div>}
     {notice && <div className="notice" role="status"><span>{notice}</span>{undoAction && <button onClick={() => { undoAction(); setNotice(''); setUndoAction(null); }}>撤销</button>}</div>}
   </div>;
 }
