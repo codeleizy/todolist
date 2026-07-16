@@ -41,19 +41,26 @@
   .status-list { width:100%; }
   .status-group { border:1px solid #eceef1; border-radius:10px; overflow:hidden; }
 
-  /* Action / today */
-  .action-workspace { display:flex; flex-direction:column; gap:13px; width:100%; max-width:none; }
-  .capture-bar { flex:0 0 auto; padding:8px 10px; border-radius:10px; box-shadow:none; }
-  .action-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:11px; }
-  .action-metric { display:grid; grid-template-columns:1fr auto; align-items:center; gap:2px; min-height:72px; padding:13px 15px; border-radius:10px; box-shadow:none; }
-  .action-metric span { font-size:12px; color:#778092; }
-  .action-metric strong { grid-column:1; font-size:24px; line-height:1; }
-  .action-metric small { grid-column:2; grid-row:1 / span 2; color:#9ba3b1; }
-  .action-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-content:start; }
-  .action-section { min-height:190px; margin:0; padding:14px; border:1px solid #e7e9ed; border-left:3px solid #dfe3eb; border-radius:10px; box-shadow:none; }
-  .action-section.attention { border-left-color:#ed776f; }.action-section.plan { border-left-color:#e3ab43; }.action-section.progress { border-left-color:#6383e8; }.action-section.neutral { border-left-color:#aab2c0; }
-  .action-section header { margin-bottom:8px; }.action-section header strong { font-size:14px; }.action-section header span { font-size:11px; }
-  .action-section .task-list { gap:2px; }.action-section .task-row { padding:8px 5px; }
+  /* Action / today — content-led rather than a dashboard of equally weighted cards. */
+  .view-today .content { overflow:auto; }
+  .action-workspace { display:flex; flex-direction:column; gap:16px; width:100%; max-width:1280px; margin:0 auto; padding:4px 0 24px; }
+  .action-context { display:flex; align-items:flex-end; justify-content:space-between; padding:4px 2px 0; }
+  .action-context > div:first-child > span { color:#7d8796; font-size:12px; font-weight:600; }
+  .action-context h2 { margin:4px 0 0; color:#252a34; font-size:21px; letter-spacing:-.5px; }
+  .action-context-stats { display:flex; gap:18px; color:#848d9a; font-size:12px; }
+  .action-context-stats span { display:flex; gap:4px; align-items:baseline; }.action-context-stats b { color:#363d4a; font-size:17px; }
+  .capture-bar { flex:0 0 auto; min-height:48px; padding:7px 8px 7px 12px; border-color:#dce1f3; border-radius:9px; box-shadow:none; }
+  .capture-bar:focus-within { border-color:#8190ed; box-shadow:0 0 0 3px #6474e816; }
+  .capture-bar input { font-size:14px; }.capture-bar .primary { min-height:32px; border-radius:7px; }
+  .action-layout { display:grid; grid-template-columns:minmax(0,1.18fr) minmax(310px,.82fr); gap:28px; align-items:start; }
+  .action-focus { padding:0; border:1px solid #e6e8ed; border-radius:10px; background:#fff; overflow:hidden; }
+  .action-focus > header { display:flex; align-items:flex-start; justify-content:space-between; padding:18px 18px 14px; border-bottom:1px solid #eef0f3; background:#f9fafc; }
+  .action-focus header span { color:#6574db; font-size:10px; font-weight:800; letter-spacing:.09em; }.action-focus h3 { margin:5px 0 3px; color:#2a303b; font-size:16px; }.action-focus p { margin:0; color:#858d9a; font-size:12px; }
+  .action-focus > header > small,.action-section > header > small { min-width:24px; padding:3px 7px; border-radius:999px; background:#eceffa; color:#6474dc; font-size:11px; font-weight:700; text-align:center; }
+  .action-focus .task-list { padding:7px 10px 10px; }.action-focus .task-row { padding:11px 7px; border-radius:7px; }.action-focus .empty { margin:8px 0; }
+  .action-secondary { display:grid; gap:1px; border-top:1px solid #ebedf1; }.action-section { min-height:0; margin:0; padding:14px 0; border:0; border-bottom:1px solid #ebedf1; border-left:0; border-radius:0; box-shadow:none; }
+  .action-section header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:7px; }.action-section header strong { color:#343b47; font-size:14px; }.action-section header span { display:block; margin-top:3px; color:#939ba7; font-size:11px; }.action-section header > small { background:#f0f2f5; color:#838d9b; }
+  .action-section .task-list { gap:1px; }.action-section .task-row { padding:8px 4px; }.action-section .empty { min-height:54px; padding:14px 10px; }
 
   /* Inbox, archive and weekly review */
   .inbox-workspace { width:100%; min-height:0; border-radius:10px; box-shadow:none; }
