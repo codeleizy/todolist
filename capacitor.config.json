@@ -2,6 +2,13 @@
   "appId": "com.codeleizy.todolist",
   "appName": "任务",
   "webDir": "dist",
+  "server": {
+    "url": "https://todolist-ray.vercel.app",
+    "cleartext": false,
+    "allowNavigation": [
+      "todolist-ray.vercel.app"
+    ]
+  },
   "android": {
     "allowMixedContent": false
   }
