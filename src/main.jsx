@@ -11,7 +11,7 @@ import { CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ScatterChar
 import {
   Archive, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Circle,
   Clock3, Columns3, Folder, Grid2X2, Inbox, List, ListTodo, Plus,
-  RefreshCw, Search, SlidersHorizontal, Tag, X
+  Pencil, RefreshCw, Search, SlidersHorizontal, Tag, X
 } from 'lucide-react';
 import './styles.css';
 
@@ -70,6 +70,8 @@ function App() {
   const [quickParent, setQuickParent] = useState(null);
   const [addingProject, setAddingProject] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -155,6 +157,8 @@ function App() {
     try { const data = await api('categories', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ name: name.trim(), project_id: projectId }) }); setCategories((items) => [...items, data[0]]); flash('分类已创建'); return true; }
     catch (error) { flash(error.message || '创建分类失败'); return false; }
   };
+  const renameProject = async (id, name) => { if (!name.trim()) return false; try { const data = await api(`projects?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ name: name.trim() }) }); if (data?.[0]) setProjects((items) => items.map((item) => item.id === id ? data[0] : item)); flash('项目已重命名'); return true; } catch (error) { flash(error.message || '重命名失败'); return false; } };
+  const renameCategory = async (id, name) => { if (!name.trim()) return false; try { const data = await api(`categories?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ name: name.trim() }) }); if (data?.[0]) setCategories((items) => items.map((item) => item.id === id ? data[0] : item)); flash('分类已重命名'); return true; } catch (error) { flash(error.message || '重命名失败'); return false; } };
   const completeTask = (task) => updateTask(task.id, { status: task.status === '已完成' ? '待进行' : '已完成' }, task.status === '已完成' ? '已恢复为待办' : '已完成');
   const changeView = (next) => { setView(next); setProjectFilter(null); setSearch(''); setQuickCreate(false); setQuickParent(null); };
   const clearFilters = () => setFilters({ status: '', priority: '', date: '', project: '', category: '' });
@@ -177,7 +181,7 @@ function App() {
       </nav>
       <div className="side-heading"><span>项目与分类</span><button aria-label="新建节点" onClick={() => setAddingProject(true)}><Plus size={15} /></button></div>
       <div className="project-tree">
-        {projects.map((project) => <div className="tree-project" key={project.id}><button className={projectFilter === project.id ? 'project active' : 'project'} onClick={() => { setProjectFilter(project.id); setView('project'); setQuickCreate(false); }}><i style={{ background: project.color || '#5f7eea' }} /><span>{project.name}</span></button>{categories.filter((category) => category.project_id === project.id).map((category) => <button className="tree-category" key={category.id} onClick={() => { setProjectFilter(project.id); setFilters((current) => ({ ...current, category: category.id })); setView('project'); }}><Tag size={12} />{category.name}</button>)}<button className="tree-add-category" onClick={() => { setProjectFilter(project.id); setAddingCategory(true); }}><Plus size={12} />新增分类</button></div>)}
+        {projects.map((project) => <div className="tree-project" key={project.id}>{editingProject === project.id ? <InlineRename initialValue={project.name} onCancel={() => setEditingProject(null)} onSubmit={async (name) => { if (await renameProject(project.id, name)) setEditingProject(null); }} /> : <div className="tree-node-action"><button className={projectFilter === project.id ? 'project active' : 'project'} onClick={() => { setProjectFilter(project.id); setView('project'); setQuickCreate(false); }}><i style={{ background: project.color || '#5f7eea' }} /><span>{project.name}</span></button><button className="tree-edit" aria-label={`重命名项目 ${project.name}`} onClick={() => setEditingProject(project.id)}><Pencil size={12} /></button></div>}{categories.filter((category) => category.project_id === project.id).map((category) => editingCategory === category.id ? <InlineRename key={category.id} initialValue={category.name} onCancel={() => setEditingCategory(null)} onSubmit={async (name) => { if (await renameCategory(category.id, name)) setEditingCategory(null); }} /> : <div className="tree-node-action category-node" key={category.id}><button className="tree-category" onClick={() => { setProjectFilter(project.id); setFilters((current) => ({ ...current, category: category.id })); setView('project'); }}><Tag size={12} />{category.name}</button><button className="tree-edit" aria-label={`重命名分类 ${category.name}`} onClick={() => setEditingCategory(category.id)}><Pencil size={12} /></button></div>)}<button className="tree-add-category" onClick={() => { setProjectFilter(project.id); setAddingCategory(true); }}><Plus size={12} />新增分类</button></div>)}
         {addingProject && <InlineName placeholder="项目名称，按 Enter 创建" onCancel={() => setAddingProject(false)} onSubmit={async (name) => { if (await createProject(name)) setAddingProject(false); }} />}
         {!projects.length && !addingProject && <p>还没有项目</p>}
       </div>
@@ -210,6 +214,7 @@ function App() {
 
 function NavButton({ icon: Glyph, label, active, onClick, count }) { return <button className={active ? 'active' : ''} onClick={onClick}><Glyph size={16} /><span>{label}</span>{count !== undefined && <small>{count}</small>}</button>; }
 function InlineName({ placeholder, onCancel, onSubmit }) { const [name, setName] = useState(''); return <form className="inline-name" onSubmit={(event) => { event.preventDefault(); onSubmit(name); }}><input autoFocus value={name} placeholder={placeholder} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') onCancel(); }} /><button type="button" onClick={onCancel}><X size={13} /></button></form>; }
+function InlineRename({ initialValue, onCancel, onSubmit }) { const [name, setName] = useState(initialValue); return <form className="inline-name tree-rename" onSubmit={(event) => { event.preventDefault(); onSubmit(name); }}><input autoFocus value={name} aria-label="重命名" onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') onCancel(); }} /><button type="button" onClick={onCancel}><X size={13} /></button></form>; }
 function InlineCategory({ projects, projectId, onCancel, onSubmit }) { const [name, setName] = useState(''); const [project, setProject] = useState(projectId || projects[0]?.id || ''); return <form className="inline-category" onSubmit={(event) => { event.preventDefault(); onSubmit(name, project); }}><input autoFocus value={name} placeholder="分类名称" onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') onCancel(); }} /><UiSelect value={project} onValueChange={setProject} placeholder="选择项目" options={projects.map((item) => ({ value: item.id, label: item.name }))} /><button type="button" onClick={onCancel}><X size={13} /></button></form>; }
 
 function QuickCreate({ projectId, status, projects, onCancel, onSubmit }) { const [title, setTitle] = useState(''); const [project, setProject] = useState(projectId || ''); return <form className="quick-create" onSubmit={(event) => { event.preventDefault(); onSubmit(title, project || null); }}><Plus size={18} /><input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`新增${displayStatus(status)}任务，按 Enter 保存`} /><UiSelect value={project} onValueChange={setProject} placeholder="收件箱" options={[{ value: '', label: '收件箱' }, ...projects.map((item) => ({ value: item.id, label: item.name }))]} /><button type="button" className="icon-button" onClick={onCancel}><X size={16} /></button><button className="primary" type="submit">添加</button></form>; }
