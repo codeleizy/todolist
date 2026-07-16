@@ -15,6 +15,7 @@ import {
   Pencil, RefreshCw, Search, SlidersHorizontal, Tag, X
 } from 'lucide-react';
 import './styles.css';
+import './mobile.css';
 
 const config = window.TODO_CONFIG || {};
 const API_ROOT = (config.supabaseUrl || '').replace(/\/$/, '').includes('/rest/v1')
@@ -77,6 +78,7 @@ function App() {
   const [undoAction, setUndoAction] = useState(null);
   const [mobileMore, setMobileMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 720px)').matches);
 
   const flash = (message, undo = null) => {
     setNotice(message);
@@ -99,6 +101,12 @@ function App() {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 720px)');
+    const sync = () => setIsMobile(media.matches);
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
 
   const childrenByParent = useMemo(() => {
     const map = new Map();
@@ -171,7 +179,7 @@ function App() {
   const title = projectFilter ? projects.find((item) => item.id === projectFilter)?.name || '项目' : titleMap[view];
   const subtitle = projectFilter ? '任务按状态组织，支持切换看板或列表浏览' : { status: '以状态为线索，快速掌握全部任务', inbox: '快速收集、集中处理，保持主工作区清爽', today: '先完成最重要、最需要行动的事', quadrant: '一掐四：用位置判断轻重缓急', calendar: '按计划与截止日期查看任务', archive: '已完成、取消或归档的记录', review: '自动汇总本周的完成与待处理事项' }[view];
   useEffect(() => {
-    if (!window.Capacitor?.isNativePlatform?.()) return undefined;
+    if (isMobile || !window.Capacitor?.isNativePlatform?.()) return undefined;
     let listener;
     NativeApp.addListener('backButton', () => {
       if (selected) return setSelected(null);
@@ -181,9 +189,9 @@ function App() {
       NativeApp.exitApp();
     }).then((handle) => { listener = handle; });
     return () => listener?.remove();
-  }, [selected, quickCreate, mobileMore, view, projectFilter]);
+  }, [isMobile, selected, quickCreate, mobileMore, view, projectFilter]);
 
-  return <div className="shell">
+  return <><MobileApp tasks={tasks} projects={projects} categories={categories} childrenByParent={childrenByParent} loading={loading} onCreate={createTask} onSave={updateTask} onDelete={deleteTask} onComplete={completeTask} /><div className="shell desktop-shell">
     <aside className="sidebar">
       <div className="brand"><b><ListTodo size={16} strokeWidth={2.5} /></b><span>任务</span></div>
       <button className="primary sidebar-create" onClick={() => { setQuickStatus('收件箱'); setQuickCreate(true); }}><Plus size={16} />新建任务</button>
@@ -226,8 +234,73 @@ function App() {
     <TaskSheet task={selected} projects={projects} categories={categories} childTasks={selected ? childrenByParent.get(selected.id) || [] : []} onClose={() => setSelected(null)} onSave={updateTask} onDelete={deleteTask} onOpenTask={setSelected} onAddChild={() => selected && (() => { setQuickParent(selected); setQuickStatus('待进行'); setQuickCreate(true); })()} />
     <nav className="mobile-nav" aria-label="移动导航"><button className={!projectFilter && view === 'inbox' ? 'active' : ''} onClick={() => changeView('inbox')}><Inbox size={18} /><span>收件箱</span></button><button className={!projectFilter && view === 'status' ? 'active' : ''} onClick={() => changeView('status')}><ListTodo size={18} /><span>任务</span></button><button className="mobile-add" onClick={() => { setQuickParent(null); setQuickStatus('收件箱'); setQuickCreate(true); }} aria-label="新建任务"><Plus size={22} /></button><button className={!projectFilter && view === 'today' ? 'active' : ''} onClick={() => changeView('today')}><Clock3 size={18} /><span>行动</span></button><button onClick={() => setMobileMore((open) => !open)} aria-expanded={mobileMore}><SlidersHorizontal size={18} /><span>更多</span></button></nav>{mobileMore && <div className="mobile-more-menu mobile-more-menu-fixed"><button onClick={() => { changeView('calendar'); setMobileMore(false); }}><CalendarDays size={16} />日历</button><button onClick={() => { changeView('quadrant'); setMobileMore(false); }}><Grid2X2 size={16} />四象限</button><button onClick={() => { changeView('review'); setMobileMore(false); }}><Clock3 size={16} />本周回顾</button><button onClick={() => { changeView('archive'); setMobileMore(false); }}><Archive size={16} />归档</button></div>}
     {notice && <div className="notice" role="status"><span>{notice}</span>{undoAction && <button onClick={() => { undoAction(); setNotice(''); setUndoAction(null); }}>撤销</button>}</div>}
+  </div></>;
+}
+
+function MobileApp({ tasks, projects, categories, childrenByParent, loading, onCreate, onSave, onDelete, onComplete }) {
+  const [tab, setTab] = useState('action');
+  const [screenStack, setScreenStack] = useState([]);
+  const screen = screenStack[screenStack.length - 1] || null;
+  const activeTasks = tasks.filter((task) => active(task) && !task.parent_id);
+  const openDetail = (task) => setScreenStack((items) => [...items, { type: 'detail', taskId: task.id }]);
+  const openCreate = (parentTask = null) => setScreenStack((items) => [...items, { type: 'create', parentTask }]);
+  const closeScreen = () => setScreenStack((items) => items.slice(0, -1));
+
+  useEffect(() => {
+    if (!window.Capacitor?.isNativePlatform?.()) return undefined;
+    let listener;
+    NativeApp.addListener('backButton', () => {
+      if (screen) return closeScreen();
+      if (tab !== 'action') return setTab('action');
+      NativeApp.exitApp();
+    }).then((handle) => { listener = handle; });
+    return () => listener?.remove();
+  }, [screen, tab]);
+
+  const selectedTask = screen?.type === 'detail' ? tasks.find((item) => item.id === screen.taskId) : null;
+  return <div className="mobile-app">
+    {!screen && <><header className="mobile-app-head"><div><span className="mobile-kicker">任务</span><h1>{tab === 'action' ? '现在要做什么？' : tab === 'inbox' ? '收集箱' : '浏览任务'}</h1></div><button className="mobile-create-icon" onClick={() => openCreate()} aria-label="新建任务"><Plus size={21} /></button></header>
+      <main className="mobile-app-content">{loading ? <div className="mobile-empty">正在载入任务…</div> : tab === 'action' ? <MobileAction tasks={activeTasks} projects={projects} onOpen={openDetail} onComplete={onComplete} onCreate={openCreate} /> : tab === 'inbox' ? <MobileInbox tasks={activeTasks.filter((task) => task.status === '收件箱')} projects={projects} onOpen={openDetail} onComplete={onComplete} onCreate={openCreate} /> : <MobileBrowse tasks={activeTasks} projects={projects} onOpen={openDetail} onComplete={onComplete} />}</main>
+      <nav className="mobile-tabbar" aria-label="移动主导航"><button className={tab === 'action' ? 'active' : ''} onClick={() => setTab('action')}><Clock3 size={20} /><span>行动</span></button><button className={tab === 'inbox' ? 'active' : ''} onClick={() => setTab('inbox')}><Inbox size={20} /><span>收集</span></button><button className="mobile-tab-add" onClick={() => openCreate()} aria-label="记录任务"><Plus size={23} /></button><button className={tab === 'browse' ? 'active' : ''} onClick={() => setTab('browse')}><ListTodo size={20} /><span>浏览</span></button></nav>
+    </>}
+    {screen?.type === 'create' && <MobileTaskForm parentTask={screen.parentTask} projects={projects} onBack={closeScreen} onCreate={async (payload) => { const created = await onCreate(payload); if (created) setScreenStack((items) => [...items.slice(0, -1), { type: 'detail', taskId: created.id }]); }} />}
+    {selectedTask && <MobileTaskDetail task={selectedTask} projects={projects} categories={categories} childTasks={childrenByParent.get(selectedTask.id) || []} onBack={closeScreen} onSave={onSave} onComplete={onComplete} onDelete={async (task) => { if (window.confirm(`删除“${task.title}”及其子任务？`)) { const deleted = await onDelete(task); if (deleted) closeScreen(); } }} onOpen={openDetail} onAddChild={() => openCreate(selectedTask)} />}
   </div>;
 }
+
+function MobileAction({ tasks, projects, onOpen, onComplete, onCreate }) {
+  const todayTasks = tasks.filter((task) => task.scheduled_for === today() || dateOnly(task.due_at) === today());
+  const focus = tasks.filter((task) => task.importance || task.urgency).sort((a, b) => Number(b.importance) + Number(b.urgency) - Number(a.importance) - Number(a.urgency));
+  const remainder = tasks.filter((task) => !focus.some((item) => item.id === task.id) && !todayTasks.some((item) => item.id === task.id));
+  return <div className="mobile-action"><p className="mobile-date">{new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date())}</p><button className="mobile-capture" onClick={() => onCreate()}><Plus size={19} /><span>记录一件要做的事</span><small>稍后再整理</small></button><MobileTaskSection title="优先处理" hint="重要或紧急" tasks={focus} projects={projects} onOpen={onOpen} onComplete={onComplete} /><MobileTaskSection title="今天计划" hint={`${todayTasks.length} 项`} tasks={todayTasks} projects={projects} onOpen={onOpen} onComplete={onComplete} /><MobileTaskSection title="其他待处理" hint={`${remainder.length} 项`} tasks={remainder.slice(0, 6)} projects={projects} onOpen={onOpen} onComplete={onComplete} empty="暂时没有其他待处理任务" /></div>;
+}
+
+function MobileInbox({ tasks, projects, onOpen, onComplete, onCreate }) { return <div className="mobile-inbox"><p className="mobile-intro">先收集，之后再决定项目、时间和优先级。</p><button className="mobile-capture" onClick={() => onCreate()}><Plus size={19} /><span>收集一条任务</span><small>{tasks.length} 条待处理</small></button>{tasks.length ? <div className="mobile-list">{tasks.map((task) => <MobileTaskRow key={task.id} task={task} project={projects.find((item) => item.id === task.project_id)} onOpen={onOpen} onComplete={onComplete} />)}</div> : <div className="mobile-empty"><Inbox size={28} /><strong>收集箱已经清空</strong><span>把突然想到的事情先记在这里。</span></div>}</div>; }
+
+function MobileBrowse({ tasks, projects, onOpen, onComplete }) { const [mode, setMode] = useState('status'); const groups = mode === 'status' ? STATUS_COLUMNS.map((column) => ({ key: column.key, name: column.label, tasks: tasks.filter((task) => task.status === column.key) })) : projects.map((project) => ({ key: project.id, name: project.name, color: project.color, tasks: tasks.filter((task) => task.project_id === project.id) })); return <div className="mobile-browse"><div className="mobile-segment"><button className={mode === 'status' ? 'selected' : ''} onClick={() => setMode('status')}>按状态</button><button className={mode === 'project' ? 'selected' : ''} onClick={() => setMode('project')}>按项目</button></div>{groups.map((group) => <section className="mobile-group" key={group.key}><header>{group.color && <i style={{ background: group.color }} />}<strong>{group.name}</strong><small>{group.tasks.length}</small></header>{group.tasks.length ? group.tasks.map((task) => <MobileTaskRow key={task.id} task={task} project={projects.find((item) => item.id === task.project_id)} onOpen={onOpen} onComplete={onComplete} />) : <p>暂无任务</p>}</section>)}</div>; }
+
+function MobileTaskSection({ title, hint, tasks, projects, onOpen, onComplete, empty = '暂无任务' }) { return <section className="mobile-task-section"><header><div><strong>{title}</strong><small>{hint}</small></div>{tasks.length > 0 && <span>{tasks.length}</span>}</header>{tasks.length ? <div className="mobile-list">{tasks.map((task) => <MobileTaskRow key={task.id} task={task} project={projects.find((item) => item.id === task.project_id)} onOpen={onOpen} onComplete={onComplete} />)}</div> : <p className="mobile-section-empty">{empty}</p>}</section>; }
+
+function MobileTaskRow({ task, project, onOpen, onComplete }) { const due = dateOnly(task.due_at); return <article className="mobile-task-row"><button className={task.status === '已完成' ? 'mobile-check complete' : 'mobile-check'} onClick={(event) => { event.stopPropagation(); onComplete?.(task); }} aria-label={task.status === '已完成' ? '恢复任务' : '完成任务'}>{task.status === '已完成' && <Check size={13} strokeWidth={3} />}</button><button className="mobile-task-main" onClick={() => onOpen(task)}><strong>{task.title}</strong><span>{project?.name || displayStatus(task.status)}{due && ` · ${due === today() ? '今天' : due < today() ? '已逾期' : due.slice(5).replace('-', '/')}`}</span></button>{(task.importance || task.urgency) && <i className={`mobile-priority ${task.importance && task.urgency ? 'both' : task.importance ? 'important' : 'urgent'}`} />}</article>; }
+
+function MobileTaskForm({ parentTask, projects, onBack, onCreate }) {
+  const [title, setTitle] = useState(''); const [description, setDescription] = useState(''); const [status, setStatus] = useState(parentTask ? '待进行' : '收件箱'); const [projectId, setProjectId] = useState(parentTask?.project_id || ''); const [priority, setPriority] = useState('normal'); const [scheduledFor, setScheduledFor] = useState(''); const [dueAt, setDueAt] = useState('');
+  const submit = (event) => { event.preventDefault(); if (!title.trim()) return; onCreate({ title, description, parentId: parentTask?.id || null, projectId: projectId || null, status, importance: priority.includes('important'), urgency: priority.includes('urgent'), scheduledFor: scheduledFor || null, dueAt: dueAt ? `${dueAt}T09:00` : null }); };
+  return <section className="mobile-page mobile-form-page"><MobilePageHead title={parentTask ? '新建子任务' : '新建任务'} onBack={onBack} action={<button className="mobile-text-action" form="mobile-create-form" type="submit" disabled={!title.trim()}>创建</button>} /><form id="mobile-create-form" onSubmit={submit}><div className="mobile-editor-card"><input className="mobile-title-input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="要做什么？" /><textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="添加说明（可选）" rows="4" /></div>{parentTask && <p className="mobile-parent-note">父任务：{parentTask.title}</p>}<MobileField label="状态"><MobileChoice options={STATUS_COLUMNS.map((item) => ({ value: item.key, label: item.label }))} value={status} onChange={setStatus} /></MobileField><MobileField label="归属项目"><div className="mobile-pills"><button type="button" className={!projectId ? 'selected' : ''} onClick={() => setProjectId('')}>收集箱</button>{projects.map((project) => <button type="button" key={project.id} className={projectId === project.id ? 'selected' : ''} onClick={() => setProjectId(project.id)}>{project.name}</button>)}</div></MobileField><MobileField label="优先级"><MobileChoice value={priority} onChange={setPriority} options={[{ value: 'normal', label: '普通' }, { value: 'important', label: '重要' }, { value: 'urgent', label: '紧急' }, { value: 'important-urgent', label: '重要且紧急' }]} /></MobileField><MobileField label="计划日期"><input className="mobile-date-input" type="date" value={scheduledFor} onChange={(event) => setScheduledFor(event.target.value)} /></MobileField><MobileField label="截止日期"><input className="mobile-date-input" type="date" value={dueAt} onChange={(event) => setDueAt(event.target.value)} /></MobileField></form></section>;
+}
+
+function MobileTaskDetail({ task, projects, categories, childTasks, onBack, onSave, onDelete, onOpen, onAddChild }) {
+  const [draft, setDraft] = useState(() => ({ ...task, due_at: dateOnly(task.due_at) })); const [saving, setSaving] = useState(false); const [dirty, setDirty] = useState(false); const revision = useRef(0);
+  useEffect(() => { setDraft({ ...task, due_at: dateOnly(task.due_at) }); setDirty(false); }, [task]);
+  const set = (key, value) => { revision.current += 1; setDirty(true); setDraft((current) => ({ ...current, [key]: value })); };
+  useEffect(() => { if (!dirty) return undefined; const timer = window.setTimeout(async () => { const currentRevision = revision.current; setSaving(true); const saved = await onSave(task.id, { title: draft.title.trim() || task.title, description: draft.description || '', status: draft.status, importance: draft.importance, urgency: draft.urgency, project_id: draft.project_id || null, category_id: draft.category_id || null, scheduled_for: draft.scheduled_for || null, due_at: draft.due_at ? new Date(`${draft.due_at}T09:00:00+08:00`).toISOString() : null }, ''); if (saved && currentRevision === revision.current) setDirty(false); setSaving(false); }, 550); return () => window.clearTimeout(timer); }, [dirty, draft, onSave, task.id, task.title]);
+  const priority = draft.importance && draft.urgency ? 'important-urgent' : draft.importance ? 'important' : draft.urgency ? 'urgent' : 'normal';
+  return <section className="mobile-page mobile-detail-page"><MobilePageHead title="任务详情" onBack={onBack} action={<button className="mobile-delete" onClick={() => onDelete(task)}>删除</button>} /><div className="mobile-save-state">{saving || dirty ? '正在保存…' : '已自动保存'}</div><div className="mobile-editor-card"><input className="mobile-title-input" value={draft.title || ''} onChange={(event) => set('title', event.target.value)} /><textarea value={draft.description || ''} onChange={(event) => set('description', event.target.value)} placeholder="添加说明、想法或下一步…" rows="5" /></div><MobileField label="状态"><MobileChoice options={STATUS_COLUMNS.map((item) => ({ value: item.key, label: item.label }))} value={draft.status} onChange={(value) => set('status', value)} /></MobileField><MobileField label="归属项目"><div className="mobile-pills"><button className={!draft.project_id ? 'selected' : ''} onClick={() => set('project_id', '')}>收集箱</button>{projects.map((project) => <button key={project.id} className={draft.project_id === project.id ? 'selected' : ''} onClick={() => set('project_id', project.id)}>{project.name}</button>)}</div></MobileField><MobileField label="优先级"><MobileChoice value={priority} onChange={(value) => { set('importance', ['important', 'important-urgent'].includes(value)); set('urgency', ['urgent', 'important-urgent'].includes(value)); }} options={[{ value: 'normal', label: '普通' }, { value: 'important', label: '重要' }, { value: 'urgent', label: '紧急' }, { value: 'important-urgent', label: '重要且紧急' }]} /></MobileField><MobileField label="计划日期"><input className="mobile-date-input" type="date" value={draft.scheduled_for || ''} onChange={(event) => set('scheduled_for', event.target.value)} /></MobileField><MobileField label="截止日期"><input className="mobile-date-input" type="date" value={draft.due_at || ''} onChange={(event) => set('due_at', event.target.value)} /></MobileField><section className="mobile-children"><header><strong>子任务</strong><span>{childTasks.filter((item) => item.status === '已完成').length}/{childTasks.length}</span><button onClick={onAddChild}><Plus size={15} />添加</button></header>{childTasks.map((child) => <button key={child.id} onClick={() => onOpen(child)}><span className={child.status === '已完成' ? 'child-check done' : 'child-check'}>{child.status === '已完成' && <Check size={10} />}</span>{child.title}<ChevronRight size={15} /></button>)}</section></section>;
+}
+
+function MobilePageHead({ title, onBack, action }) { return <header className="mobile-page-head"><button onClick={onBack} aria-label="返回"><ChevronLeft size={23} /></button><strong>{title}</strong>{action || <span />}</header>; }
+function MobileField({ label, children }) { return <section className="mobile-field"><h2>{label}</h2>{children}</section>; }
+function MobileChoice({ options, value, onChange }) { return <div className="mobile-choice">{options.map((option) => <button type="button" key={option.value} className={value === option.value ? 'selected' : ''} onClick={() => onChange(option.value)}>{option.label}</button>)}</div>; }
 
 function NavButton({ icon: Glyph, label, active, onClick, count }) { return <button className={active ? 'active' : ''} onClick={onClick}><Glyph size={16} /><span>{label}</span>{count !== undefined && <small>{count}</small>}</button>; }
 function InlineName({ placeholder, onCancel, onSubmit }) { const [name, setName] = useState(''); return <form className="inline-name" onSubmit={(event) => { event.preventDefault(); onSubmit(name); }}><input autoFocus value={name} placeholder={placeholder} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') onCancel(); }} /><button type="button" onClick={onCancel}><X size={13} /></button></form>; }
