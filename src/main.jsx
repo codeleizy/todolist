@@ -6,6 +6,7 @@ import * as Select from '@radix-ui/react-select';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import * as RadioGroup from '@radix-ui/react-radio-group';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
+import { App as NativeApp } from '@capacitor/app';
 import { DayPicker } from 'react-day-picker';
 import { CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
 import {
@@ -163,12 +164,24 @@ function App() {
   const renameProject = async (id, name) => { if (!name.trim()) return false; try { const data = await api(`projects?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ name: name.trim() }) }); if (data?.[0]) setProjects((items) => items.map((item) => item.id === id ? data[0] : item)); flash('项目已重命名'); return true; } catch (error) { flash(error.message || '重命名失败'); return false; } };
   const renameCategory = async (id, name) => { if (!name.trim()) return false; try { const data = await api(`categories?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ name: name.trim() }) }); if (data?.[0]) setCategories((items) => items.map((item) => item.id === id ? data[0] : item)); flash('分类已重命名'); return true; } catch (error) { flash(error.message || '重命名失败'); return false; } };
   const completeTask = async (task) => { const nextStatus = task.status === '已完成' ? '待进行' : '已完成'; const updated = await updateTask(task.id, { status: nextStatus }, ''); if (updated) flash(nextStatus === '已完成' ? '任务已完成' : '任务已恢复', () => updateTask(task.id, { status: task.status }, '已撤销')); };
-  const changeView = (next) => { setView(next); setProjectFilter(null); setSearch(''); setQuickCreate(false); setQuickParent(null); };
+  const changeView = (next) => { setView(next); setProjectFilter(null); setSearch(''); setQuickCreate(false); setQuickParent(null); setMobileMore(false); };
   const clearFilters = () => setFilters({ status: '', priority: '', date: '', project: '', category: '' });
   const hasFilters = Object.values(filters).some(Boolean) || Boolean(projectFilter);
   const titleMap = { inbox: '收件箱', today: '行动', status: '任务', quadrant: '四象限', calendar: '日历', archive: '归档', review: '本周回顾', project: '项目任务' };
   const title = projectFilter ? projects.find((item) => item.id === projectFilter)?.name || '项目' : titleMap[view];
   const subtitle = projectFilter ? '任务按状态组织，支持切换看板或列表浏览' : { status: '以状态为线索，快速掌握全部任务', inbox: '快速收集、集中处理，保持主工作区清爽', today: '先完成最重要、最需要行动的事', quadrant: '一掐四：用位置判断轻重缓急', calendar: '按计划与截止日期查看任务', archive: '已完成、取消或归档的记录', review: '自动汇总本周的完成与待处理事项' }[view];
+  useEffect(() => {
+    if (!window.Capacitor?.isNativePlatform?.()) return undefined;
+    let listener;
+    NativeApp.addListener('backButton', () => {
+      if (selected) return setSelected(null);
+      if (quickCreate) { setQuickCreate(false); return setQuickParent(null); }
+      if (mobileMore) return setMobileMore(false);
+      if (view !== 'today' || projectFilter) return changeView('today');
+      NativeApp.exitApp();
+    }).then((handle) => { listener = handle; });
+    return () => listener?.remove();
+  }, [selected, quickCreate, mobileMore, view, projectFilter]);
 
   return <div className="shell">
     <aside className="sidebar">
