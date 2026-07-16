@@ -66,7 +66,7 @@ function App() {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [view, setView] = useState('today');
+  const [view, setView] = useState(() => { const requested = new URLSearchParams(window.location.search).get('view'); return ['today', 'inbox', 'status', 'quadrant', 'calendar', 'archive', 'review'].includes(requested) ? requested : 'today'; });
   const [viewMode, setViewMode] = useState('board');
   const [selected, setSelected] = useState(null);
   const [projectFilter, setProjectFilter] = useState(null);
