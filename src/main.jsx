@@ -20,6 +20,7 @@ import './mobile-features.css';
 import './mobile-manager.css';
 import './multica-style.css';
 import './workspace-theme.css';
+import './app-workspace.css';
 
 const config = window.TODO_CONFIG || {};
 const API_ROOT = (config.supabaseUrl || '').replace(/\/$/, '').includes('/rest/v1')
@@ -263,9 +264,9 @@ function MobileApp({ tasks, projects, categories, childrenByParent, loading, onC
 
   const selectedTask = screen?.type === 'detail' ? tasks.find((item) => item.id === screen.taskId) : null;
   return <div className="mobile-app">
-    {!screen && <><header className="mobile-app-head"><div><span className="mobile-kicker">任务</span><h1>{tab === 'action' ? '现在要做什么？' : tab === 'inbox' ? '收集箱' : '浏览任务'}</h1></div><button className="mobile-create-icon" onClick={() => openCreate()} aria-label="新建任务"><Plus size={21} /></button></header>
+    {!screen && <><header className="mobile-app-head"><div><span className="mobile-kicker">任务</span><h1>{tab === 'action' ? '现在要做什么？' : tab === 'inbox' ? '收集箱' : '任务工作台'}</h1></div><button className="mobile-create-icon" onClick={() => openCreate()} aria-label="新建任务"><Plus size={21} /></button></header>
       <main className="mobile-app-content">{loading ? <div className="mobile-empty">正在载入任务…</div> : tab === 'action' ? <MobileAction tasks={activeTasks} projects={projects} onOpen={openDetail} onComplete={onComplete} onCreate={openCreate} /> : tab === 'inbox' ? <MobileInbox tasks={activeTasks.filter((task) => task.status === '收件箱')} projects={projects} onOpen={openDetail} onComplete={onComplete} onCreate={openCreate} /> : <MobileBrowse tasks={tasks.filter((task) => !task.parent_id)} projects={projects} categories={categories} childrenByParent={childrenByParent} onOpen={openDetail} onComplete={onComplete} onCreateProject={onCreateProject} onCreateCategory={onCreateCategory} onRenameProject={onRenameProject} onRenameCategory={onRenameCategory} />}</main>
-      <nav className="mobile-tabbar" aria-label="移动主导航"><button className={tab === 'action' ? 'active' : ''} onClick={() => setTab('action')}><Clock3 size={20} /><span>行动</span></button><button className={tab === 'inbox' ? 'active' : ''} onClick={() => setTab('inbox')}><Inbox size={20} /><span>收集</span></button><button className="mobile-tab-add" onClick={() => openCreate()} aria-label="记录任务"><Plus size={23} /></button><button className={tab === 'browse' ? 'active' : ''} onClick={() => setTab('browse')}><ListTodo size={20} /><span>浏览</span></button></nav>
+      <nav className="mobile-tabbar" aria-label="移动主导航"><button className={tab === 'action' ? 'active' : ''} onClick={() => setTab('action')}><Clock3 size={20} /><span>行动</span></button><button className={tab === 'inbox' ? 'active' : ''} onClick={() => setTab('inbox')}><Inbox size={20} /><span>收集</span></button><button className="mobile-tab-add" onClick={() => openCreate()} aria-label="记录任务"><Plus size={23} /></button><button className={tab === 'browse' ? 'active' : ''} onClick={() => setTab('browse')}><ListTodo size={20} /><span>任务</span></button></nav>
     </>}
     {screen?.type === 'create' && <MobileTaskForm parentTask={screen.parentTask} projects={projects} categories={categories} onBack={closeScreen} onCreate={async (payload) => { const created = await onCreate(payload); if (created) setScreenStack((items) => [...items.slice(0, -1), { type: 'detail', taskId: created.id }]); }} />}
     {selectedTask && <MobileTaskDetail task={selectedTask} projects={projects} categories={categories} childTasks={childrenByParent.get(selectedTask.id) || []} onBack={closeScreen} onSave={onSave} onComplete={onComplete} onDelete={async (task) => { if (window.confirm(`删除“${task.title}”及其子任务？`)) { const deleted = await onDelete(task); if (deleted) closeScreen(); } }} onOpen={openDetail} onAddChild={() => openCreate(selectedTask)} />}
