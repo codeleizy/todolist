@@ -3,3 +3,10 @@
 dist/
 .vercel/
 node_modules/
+android-sdk/
+android-sdk-temp/
+commandlinetools-win.zip
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties

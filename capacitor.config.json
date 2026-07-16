@@ -1,0 +1,8 @@
+{
+  "appId": "com.codeleizy.todolist",
+  "appName": "任务",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  }
+}

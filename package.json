@@ -7,9 +7,13 @@
     "dev": "vite",
     "build": "vite build && node scripts/write-runtime-config.mjs",
     "preview": "vite preview",
-    "start:api": "node api/server.mjs"
+    "start:api": "node api/server.mjs",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.0",
+    "@capacitor/core": "^7.6.0",
     "@radix-ui/react-alert-dialog": "^1.1.19",
     "@radix-ui/react-collapsible": "^1.1.16",
     "@radix-ui/react-dialog": "^1.1.19",
@@ -26,5 +30,9 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.0",
+    "typescript": "^7.0.2"
   }
 }
