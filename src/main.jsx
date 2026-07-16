@@ -19,6 +19,7 @@ import './mobile.css';
 import './mobile-features.css';
 import './mobile-manager.css';
 import './multica-style.css';
+import './workspace-theme.css';
 
 const config = window.TODO_CONFIG || {};
 const API_ROOT = (config.supabaseUrl || '').replace(/\/$/, '').includes('/rest/v1')
